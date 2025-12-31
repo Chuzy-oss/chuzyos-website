@@ -4,57 +4,135 @@
   <meta charset="UTF-8">
   <title>ChuzyOS</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <style>
+    :root {
+      --bg: #0f0f12;
+      --text: #ffffff;
+      --accent: #ff4da6;
+    }
+
     body {
       margin: 0;
-      padding: 0 20px;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+
+    main {
+      position: relative;
+      z-index: 1;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: #f5f5f5;
-      font-family: Arial, sans-serif;
-      color: #111;
       text-align: center;
+      padding: 20px;
     }
+
     h1 {
-      font-size: 2.5rem;
-      margin-bottom: 0.5rem;
+      font-size: 2.8rem;
+      margin-bottom: 10px;
     }
+
     p {
-      font-size: 1.2rem;
       max-width: 600px;
-      line-height: 1.5;
+      line-height: 1.6;
+      font-size: 1.1rem;
     }
+
     ul {
-      text-align: left;
       margin-top: 20px;
-      max-width: 600px;
-      padding-left: 20px;
+      text-align: left;
+      max-width: 500px;
     }
+
     li {
       margin-bottom: 8px;
     }
+
+    footer {
+      margin-top: 40px;
+      font-size: 0.85rem;
+      opacity: 0.7;
+    }
   </style>
 </head>
+
 <body>
-Force redeploy of GitHub Pages
+
+<canvas id="particles"></canvas>
+
+<main>
   <h1>🚀 ChuzyOS</h1>
+
   <p>
-    ChuzyOS is an experimental AI workspace for exploring intelligent tools and small AI projects.  
-    This site serves as a living log of experiments, ideas, and prototypes.
+    ChuzyOS is an experimental AI workspace for exploring intelligent tools,
+    agent systems, and small AI-powered utilities.
+    This site is a living log of ideas, experiments, and prototypes.
   </p>
-  
+
   <h2>Current Experiments</h2>
   <ul>
     <li>AI-powered agent simulations</li>
     <li>Automated task workflows</li>
     <li>Small interactive AI utilities</li>
   </ul>
-  
-  <p style="margin-top: 30px; font-size: 0.9rem; color: #555;">
-    This site is under active development. Content and experiments will evolve over time.
-  </p>
+
+  <footer>
+    Under active development. Expect evolution.
+  </footer>
+</main>
+
+<script>
+  const canvas = document.getElementById("particles");
+  const ctx = canvas.getContext("2d");
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  const particles = Array.from({ length: 80 }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    vx: (Math.random() - 0.5) * 0.4,
+    vy: (Math.random() - 0.5) * 0.4,
+    r: Math.random() * 2 + 1
+  }));
+
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    particles.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+
+      if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+      if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
+      ctx.fill();
+    });
+
+    requestAnimationFrame(animate);
+  }
+
+  animate();
+</script>
+
 </body>
 </html>
