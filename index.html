@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>ChuzyOS</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ChuzyOS — an experimental AI workspace for exploring intelligent tools, agent systems, and small AI-powered utilities.">
 
   <style>
     :root {
@@ -17,14 +18,17 @@
       font-family: Arial, sans-serif;
       background: var(--bg);
       color: var(--text);
-      overflow: hidden;
+      /* allow scrolling on small devices */
     }
 
     canvas {
       position: fixed;
       top: 0;
       left: 0;
+      width: 100%;
+      height: 100%;
       z-index: 0;
+      pointer-events: none;
     }
 
     main {
@@ -70,7 +74,7 @@
 
 <body>
 
-<canvas id="particles"></canvas>
+<canvas id="particles" aria-hidden="true"></canvas>
 
 <main>
   <h1>🚀 ChuzyOS</h1>
@@ -97,41 +101,154 @@
   const canvas = document.getElementById("particles");
   const ctx = canvas.getContext("2d");
 
-  function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+  let particles = [];
+  let rafId = null;
+  let running = false;
+
+  // Respect user preference for reduced motion
+  const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  function prefersReducedMotion() {
+    return reducedMotionQuery.matches;
   }
-  resize();
-  window.addEventListener("resize", resize);
 
-  const particles = Array.from({ length: 80 }, () => ({
-    x: Math.random() * canvas.width,
-    y: Math.random() * canvas.height,
-    vx: (Math.random() - 0.5) * 0.4,
-    vy: (Math.random() - 0.5) * 0.4,
-    r: Math.random() * 2 + 1
-  }));
+  // Determine particle count based on viewport area (keeps load reasonable)
+  function computeParticleCount() {
+    const area = window.innerWidth * window.innerHeight;
+    const density = 0.00003; // particles per pixel^2, tweakable
+    return Math.min(150, Math.max(10, Math.round(area * density)));
+  }
 
-  function animate() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  function createParticles(count, width, height) {
+    particles = Array.from({ length: count }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      r: Math.random() * 2 + 1
+    }));
+  }
 
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+
+    // Set CSS size (so canvas covers viewport) and backed pixel size for crisp rendering
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    canvas.width = Math.round(window.innerWidth * dpr);
+    canvas.height = Math.round(window.innerHeight * dpr);
+
+    // Scale drawing operations so 1 unit = 1 CSS pixel
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Recreate particles to fit the new viewport
+    const count = computeParticleCount();
+    createParticles(count, window.innerWidth, window.innerHeight);
+  }
+
+  // Draw once (used for reduced-motion or initial static render)
+  function drawFrame() {
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+    ctx.fillStyle = "rgba(255,255,255,0.7)";
     particles.forEach(p => {
-      p.x += p.vx;
-      p.y += p.vy;
-
-      if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
-      if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
-
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(255,255,255,0.7)";
       ctx.fill();
     });
-
-    requestAnimationFrame(animate);
   }
 
-  animate();
+  function animate() {
+    running = true;
+    function frame() {
+      // If user prefers reduced motion or tab is hidden, stop animating
+      if (prefersReducedMotion() || document.hidden) {
+        running = false;
+        rafId = null;
+        drawFrame(); // draw static fallback
+        return;
+      }
+
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+
+        if (p.x < 0) { p.x = 0; p.vx *= -1; }
+        if (p.x > window.innerWidth) { p.x = window.innerWidth; p.vx *= -1; }
+        if (p.y < 0) { p.y = 0; p.vy *= -1; }
+        if (p.y > window.innerHeight) { p.y = window.innerHeight; p.vy *= -1; }
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255,255,255,0.7)";
+        ctx.fill();
+      });
+
+      rafId = requestAnimationFrame(frame);
+    }
+
+    if (!rafId) frame();
+  }
+
+  // Start/stop helpers
+  function startIfNeeded() {
+    if (prefersReducedMotion() || document.hidden) {
+      // draw a static frame instead of animating
+      drawFrame();
+      return;
+    }
+    if (!running) animate();
+  }
+
+  function stopAnimation() {
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    running = false;
+  }
+
+  // Initial setup
+  resize();
+  // If reduced motion is preferred, draw a static background; otherwise animate
+  if (prefersReducedMotion()) {
+    drawFrame();
+  } else {
+    animate();
+  }
+
+  // Respond to viewport changes
+  window.addEventListener("resize", () => {
+    // debounce resize to avoid thrash on some devices
+    clearTimeout(window._particleResizeTimeout);
+    window._particleResizeTimeout = setTimeout(() => {
+      const wasRunning = running;
+      stopAnimation();
+      resize();
+      if (wasRunning) startIfNeeded();
+      else drawFrame();
+    }, 120);
+  });
+
+  // Pause animation when tab is hidden, resume when visible (if allowed)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      stopAnimation();
+    } else {
+      startIfNeeded();
+    }
+  });
+
+  // React to changes in the user's reduced-motion preference
+  reducedMotionQuery.addEventListener('change', () => {
+    if (prefersReducedMotion()) {
+      stopAnimation();
+      drawFrame();
+    } else {
+      startIfNeeded();
+    }
+  });
 </script>
 
 </body>
